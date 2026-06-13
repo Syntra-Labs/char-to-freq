@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polyphonic Multi-Text Telemetry Array</title>
+    <style>
+        /* BASE SYSTEM SYSTEM THEME */
+        :root {
+            --bg-color: #040608;
+            --panel-bg: #0b0f19;
+            --accent-magenta: #ff00ff;
+            --accent-cyan: #00ffff;
+            --text-muted: #8a9ba8;
+            --terminal-green: #00ff66;
+            --danger-red: #ff2a4b;
+            --ch1-color: #00ffff;
+            --ch2-color: #ff00ff;
+            --ch3-color: #ffff00;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #e2e8f0;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .app-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 0, 255, 0.2);
+            box-shadow: 0 0 25px rgba(255, 0, 255, 0.05);
+            border-radius: 8px;
+            padding: 25px;
+        }
+
+        header {
+            margin-bottom: 20px;
+            border-bottom: 1px dashed var(--accent-magenta);
+            padding-bottom: 10px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+        }
+
+        header p {
+            margin: 5px 0 0 0;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* MASTER CONTROL TRIGGER */
+        .master-toggle-container {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .btn-action {
+            width: 100%;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold; font-size: 1.3rem;
+            padding: 16px 20px; border-radius: 4px;
+            cursor: pointer; outline: none; border: none;
+            text-transform: uppercase; letter-spacing: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-start {
+            background: var(--accent-magenta); color: #fff;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+        }
+
+        .btn-start:hover {
+            background: #d600d6; box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+        }
+
+        .btn-stop {
+            background: var(--danger-red); color: #fff;
+            box-shadow: 0 0 15px rgba(255, 42, 75, 0.3);
+        }
+
+        .btn-stop:hover {
+            background: #cc1b37; box-shadow: 0 0 20px rgba(255, 42, 75, 0.6);
+        }
+
+        /* MULTI-TRACK MIXING DESK COMPONENT */
+        .mixer-desk {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .channel-strip {
+            background: rgba(4, 6, 8, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .channel-strip.ch-1 { border-top: 4px solid var(--ch1-color); }
+        .channel-strip.ch-2 { border-top: 4px solid var(--ch2-color); }
+        .channel-strip.ch-3 { border-top: 4px solid var(--ch3-color); }
+
+        .channel-header {
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .ch-1 .channel-header { color: var(--ch1-color); }
+        .ch-2 .channel-header { color: var(--ch2-color); }
+        .ch-3 .channel-header { color: var(--ch3-color); }
+
+        /* MULTI-LAYER TEXT FIELDS */
+        .text-stream-wrapper {
+            position: relative;
+            width: 100%;
+            height: 110px;
+            margin-bottom: 15px;
+        }
+
+        .text-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px; line-height: 1.4;
+            padding: 10px; margin: 0;
+            box-sizing: border-box;
+            white-space: pre-wrap; word-wrap: break-word;
+            overflow-y: scroll;
+            border-radius: 4px;
+        }
+
+        .textarea-backdrop {
+            color: transparent;
+            background-color: #020305;
+            border: 1px solid #1a2333;
+            pointer-events: none; z-index: 1;
+        }
+
+        .textarea-input {
+            background-color: transparent;
+            color: #c0cad4;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 2; resize: none;
+            caret-color: var(--accent-cyan); outline: none;
+        }
+        .ch-1 .textarea-input:focus { border-color: var(--ch1-color); }
+        .ch-2 .textarea-input:focus { border-color: var(--ch2-color); }
+        .ch-3 .textarea-input:focus { border-color: var(--ch3-color); }
+
+        /* DYNAMIC CHANNEL HIGHLIGHTS */
+        .ch-1 .tracking-highlight { background: rgba(0, 255, 255, 0.3); color: var(--ch1-color); }
+        .ch-2 .tracking-highlight { background: rgba(255, 0, 255, 0.3); color: var(--ch2-color); }
+        .ch-3 .tracking-highlight { background: rgba(255, 255, 0, 0.3); color: var(--ch3-color); }
+
+        /* CHANNEL CONTROLS */
+        .channel-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #111622;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .control-element {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-element label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .control-element select, .slider-container input {
+            background: #040608; color: #fff;
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 5px; border-radius: 4px; outline: none;
+            font-family: monospace; font-size: 0.75rem;
+        }
+
+        .slider-container { display: flex; align-items: center; gap: 6px; }
+        .slider-container input { flex-grow: 1; accent-color: var(--accent-cyan); cursor: pointer; }
+        .slider-val { font-size: 0.75rem; color: var(--accent-cyan); width: 30px; text-align: right; }
+
+        /* GLOBAL HARDWARE SPEED ACCESSORY */
+        .global-hardware {
+            background: #111622;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid rgba(0, 255, 255, 0.1);
+        }
+        .global-hardware label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); }
+
+        /* GRAPHICS DISPLAY INTERFACE */
+        .live-visuals {
+            width: 100%; height: 110px;
+            background: #020406; border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 4px; margin-bottom: 20px;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .history-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px; width: 100%;
+        }
+
+        .history-panel {
+            background: #060913; border: 1px solid rgba(255, 0, 255, 0.15);
+            border-radius: 4px; display: flex; flex-direction: column; height: 240px;
+        }
+
+        .history-panel h3 {
+            margin: 0; padding: 8px 12px;
+            background: rgba(255, 0, 255, 0.07); color: var(--accent-cyan);
+            font-size: 0.75rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(255, 0, 255, 0.1);
+        }
+
+        .canvas-container-history { flex-grow: 1; position: relative; background: #010204; }
+        
+        .terminal-log {
+            flex-grow: 1; padding: 10px; margin: 0;
+            overflow-y: auto; font-size: 0.72rem; color: var(--terminal-green);
+            background: #020306; list-style: none;
+        }
+
+        .terminal-log li { margin-bottom: 4px; border-bottom: 1px solid rgba(0, 255, 102, 0.08); padding-bottom: 4px; }
+        .log-time { color: var(--text-muted); }
+        .log-ch1 { color: var(--ch1-color); }
+        .log-ch2 { color: var(--ch2-color); }
+        .log-ch3 { color: var(--ch3-color); }
+        .log-char { background: rgba(255,255,255,0.1); padding: 0 3px; color: #fff; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1>POLYPHONIC MICROTONAL MIXER ENGINE</h1>
+            <p>Simultaneous Multi-Track Carrier Synthesis Array [72-EDO Matrix System v3.0]</p>
+        </header>
+
+        <div class="master-toggle-container">
+            <button id="toggleBtn" class="btn-action btn-start">▶ ACTIVATE MIXER ARRAY</button>
+        </div>
+
+        <div class="global-hardware">
+            <label>Master Processing Speed</label>
+            <div class="slider-container" style="flex-grow:1;">
+                <input type="range" id="speedSlider" min="0.2" max="2.5" step="0.1" value="1.0">
+                <span id="speedValue" class="slider-val">1.0x</span>
+            </div>
+        </div>
+
+        <div class="mixer-desk">
+            
+            <div class="channel-strip ch-1">
+                <div class="channel-header">CHANNEL 01 // BASAL</div>
+                <div class="text-stream-wrapper">
+                    <div id="backdrop-1" class="text-layer textarea-backdrop"></div>
+                    <textarea id="text-1" class="text-layer textarea-input" spellcheck="false">POLYPHONIC ENGINE TEST LANE ONE</textarea>
+                </div>
+                <div class="channel-controls">
+                    <div class="control-element">
+                        <label>Waveform</label>
+                        <select id="timbre-1">
+                            <option value="sine">Sine</option>
+                            <option value="triangle" selected>Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+                    <div class="control-element">
+                        <label>Gain Fader</label>
+                        <div class="slider-container">
+                            <input type="range" id="vol-1" min="0" max="1" step="0.05" value="0.7">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="channel-strip ch-2">
+                <div class="channel-header">CHANNEL 02 // COUNTER</div>
+                <div class="text-stream-wrapper">
+                    <div id="backdrop-2" class="text-layer textarea-backdrop"></div>
+                    <textarea id="text-2" class="text-layer textarea-input" spellcheck="false">COUNTERPOINT MATRIX DEPLOYING</textarea>
+                </div>
+                <div class="channel-controls">
+                    <div class="control-element">
+                        <label>Waveform</label>
+                        <select id="timbre-2">
+                            <option value="sine" selected>Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+                    <div class="control-element">
+                        <label>Gain Fader</label>
+                        <div class="slider-container">
+                            <input type="range" id="vol-2" min="0" max="1" step="0.05" value="0.7">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="channel-strip ch-3">
+                <div class="channel-header">CHANNEL 03 // ALTITUDE</div>
+                <div class="text-stream-wrapper">
+                    <div id="backdrop-3" class="text-layer textarea-backdrop"></div>
+                    <textarea id="text-3" class="text-layer textarea-input" spellcheck="false">🧬🛸🌌</textarea>
+                </div>
+                <div class="channel-controls">
+                    <div class="control-element">
+                        <label>Waveform</label>
+                        <select id="timbre-3">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square" selected>Square</option>
+                        </select>
+                    </div>
+                    <div class="control-element">
+                        <label>Gain Fader</label>
+                        <div class="slider-container">
+                            <input type="range" id="vol-3" min="0" max="1" step="0.05" value="0.3">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="live-visuals">
+            <canvas id="oscilloscope"></canvas>
+        </div>
+
+        <div class="history-grid">
+            <div class="history-panel">
+                <h3>Composite Spectral Waterfall History</h3>
+                <div class="canvas-container-history">
+                    <canvas id="waterfallCanvas"></canvas>
+                </div>
+            </div>
+            <div class="history-panel">
+                <h3>Interleaved Telemetry Tone Log</h3>
+                <ul id="toneLog" class="terminal-log">
+                    <li>[SYSTEM] System Idle. Open master processing loop...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Channel Runtime Mapping Configurations
+        const channels = [
+            { id: 1, textEl: document.getElementById('text-1'), bdropEl: document.getElementById('backdrop-1'), timbreEl: document.getElementById('timbre-1'), volEl: document.getElementById('vol-1'), logClass: 'log-ch1', label: 'CH1' },
+            { id: 2, textEl: document.getElementById('text-2'), bdropEl: document.getElementById('backdrop-2'), timbreEl: document.getElementById('timbre-2'), volEl: document.getElementById('vol-2'), logClass: 'log-ch2', label: 'CH2' },
+            { id: 3, textEl: document.getElementById('text-3'), bdropEl: document.getElementById('backdrop-3'), timbreEl: document.getElementById('timbre-3'), volEl: document.getElementById('vol-3'), logClass: 'log-ch3', label: 'CH3' }
+        ];
+
+        const toggleBtn = document.getElementById('toggleBtn');
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+        const toneLog = document.getElementById('toneLog');
+        
+        const oscCanvas = document.getElementById('oscilloscope');
+        const oscCtx = oscCanvas.getContext('2d');
+        const waterCanvas = document.getElementById('waterfallCanvas');
+        const waterCtx = waterCanvas.getContext('2d');
+
+        // Central Polyphonic Signal Memory Core
+        let audioCtx = null, masterAnalyser = null;
+        let isPlaying = false;
+        let scheduleTimerId = null;
+
+        // Populate independent track state loops
+        channels.forEach(ch => {
+            ch.playheadIndex = 0;
+            ch.nextNoteTime = 0.0;
+            ch.oscNode = null;
+            ch.gainNode = null;
+            ch.trackingQueue = [];
+            ch.lastHighlightedIndex = -1;
+            ch.lastLoggedIndex = -1;
+
+            // Synchronize individual text scroll tracks
+            ch.textEl.addEventListener('scroll', () => {
+                ch.bdropEl.scrollTop = ch.textEl.scrollTop;
+                ch.bdropEl.scrollLeft = ch.textEl.scrollLeft;
+            });
+
+            // Handle runtime waveform flips per channel
+            ch.timbreEl.addEventListener('change', () => {
+                if (ch.oscNode && isPlaying) ch.oscNode.type = ch.timbreEl.value;
+            });
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            speedValue.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+        });
+
+        toggleBtn.addEventListener('click', () => {
+            if (!isPlaying) startPolyphonicEngine(); else stopPolyphonicEngine();
+        });
+
+        // Unified Multi-Voice Coordinator Pipeline
+        function masterScheduler() {
+            const currentTime = audioCtx.currentTime;
+
+            channels.forEach(ch => {
+                // Keep lookahead window populated individually per channel pipeline
+                while (ch.nextNoteTime < currentTime + 0.1) {
+                    scheduleChannelNote(ch, ch.playheadIndex, ch.nextNoteTime);
+                    advanceChannelPlayhead(ch);
+                }
+            });
+
+            if (isPlaying) scheduleTimerId = setTimeout(masterScheduler, 25);
+        }
+
+        function scheduleChannelNote(ch, idx, time) {
+            const txt = ch.textEl.value;
+            if (txt.length === 0) {
+                ch.gainNode.gain.setValueAtTime(0, time);
+                ch.nextNoteTime += 0.1;
+                return;
+            }
+
+            let charCode = txt.codePointAt(idx);
+            if (isNaN(charCode)) charCode = 32;
+            let len = (charCode > 0xFFFF) ? 2 : 1;
+
+            // 72-EDO Microtonal Distribution
+            const freq = 261.63 * Math.pow(2, (charCode % 72) / 72.0);
+            const masterSpeed = parseFloat(speedSlider.value) || 1.0;
+            const duration = ((45 + ((charCode * 5) % 6) * 20) / 1000.0) / masterSpeed;
+
+            ch.oscNode.frequency.setValueAtTime(freq, time);
+
+            // Fetch and blend fader scalars safely to prevent hardware clipping
+            const targetVolume = (parseFloat(ch.volEl.value) || 0.0) * 0.08; 
+
+            // Execute envelope operations
+            ch.gainNode.gain.setValueAtTime(0, time);
+            ch.gainNode.gain.linearRampToValueAtTime(targetVolume, time + 0.002);
+            ch.gainNode.gain.setValueAtTime(targetVolume, Math.max(time + 0.002, time + (duration * 0.9)));
+            ch.gainNode.gain.linearRampToValueAtTime(0, time + duration);
+
+            ch.trackingQueue.push({ 
+                time, 
+                duration, 
+                index: idx, 
+                length: len, 
+                freq, 
+                charCode, 
+                char: txt.substring(idx, idx + len) 
+            });
+            
+            ch.nextNoteTime += duration;
+        }
+
+        function advanceChannelPlayhead(ch) {
+            const txt = ch.textEl.value;
+            if (txt.length === 0) { ch.playheadIndex = 0; return; }
+            let code = txt.codePointAt(ch.playheadIndex);
+            ch.playheadIndex += (isNaN(code) || code <= 0xFFFF) ? 1 : 2;
+            if (ch.playheadIndex >= txt.length) ch.playheadIndex = 0;
+        }
+
+        function startPolyphonicEngine() {
+            if (isPlaying) return;
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContextClass();
+            
+            masterAnalyser = audioCtx.createAnalyser();
+            masterAnalyser.fftSize = 1024;
+            masterAnalyser.connect(audioCtx.destination);
+
+            const systemStartTime = audioCtx.currentTime;
+            toneLog.innerHTML = "";
+
+            // Initialize processing architecture across each strip channel array
+            channels.forEach(ch => {
+                ch.oscNode = audioCtx.createOscillator();
+                ch.gainNode = audioCtx.createGain();
+                
+                ch.oscNode.type = ch.timbreEl.value;
+                ch.gainNode.gain.value = 0;
+
+                ch.oscNode.connect(ch.gainNode).connect(masterAnalyser);
+
+                ch.playheadIndex = 0;
+                ch.nextNoteTime = systemStartTime;
+                ch.trackingQueue = [];
+                ch.lastHighlightedIndex = -1;
+                ch.lastLoggedIndex = -1;
+
+                ch.oscNode.start(systemStartTime);
+            });
+
+            isPlaying = true;
+            masterScheduler();
+
+            toggleBtn.innerHTML = "■ HALT SIGNAL PROCESSING ARRANGEMENT";
+            toggleBtn.className = "btn-action btn-stop";
+        }
+
+        function stopPolyphonicEngine() {
+            if (!isPlaying) return;
+            isPlaying = false;
+            clearTimeout(scheduleTimerId);
+
+            channels.forEach(ch => {
+                if (ch.gainNode) {
+                    try {
+                        const now = audioCtx.currentTime;
+                        ch.gainNode.gain.cancelScheduledValues(now);
+                        ch.gainNode.gain.setValueAtTime(ch.gainNode.gain.value, now);
+                        ch.gainNode.gain.linearRampToValueAtTime(0, now + 0.01);
+                    } catch(e) {}
+                }
+                renderChannelText(ch, -1, 0);
+            });
+
+            setTimeout(() => {
+                if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+            }, 15);
+
+            toggleBtn.innerHTML = "▶ ACTIVATE MIXER ARRAY";
+            toggleBtn.className = "btn-action btn-start";
+            
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="log-time">[SYS]</span> ALL ENGINE PORTS DEACTIVATED. SHUTDOWN LOGGED.`;
+            toneLog.prepend(li);
+        }
+
+        // Parallel Interface Syncing Frame Engine
+        function syncInterfaceVisuals() {
+            requestAnimationFrame(syncInterfaceVisuals);
+            if (!isPlaying || !audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            channels.forEach(ch => {
+                // Filter elapsed points out of tracking nodes arrays
+                while (ch.trackingQueue.length && ch.trackingQueue[0].time + ch.trackingQueue[0].duration < now) {
+                    ch.trackingQueue.shift();
+                }
+
+                if (ch.trackingQueue.length && ch.trackingQueue[0].time <= now) {
+                    const t = ch.trackingQueue[0];
+                    renderChannelText(ch, t.index, t.length);
+
+                    if (t.index !== ch.lastLoggedIndex) {
+                        ch.lastLoggedIndex = t.index;
+                        
+                        // Output to historical intertwined unified tracking log console
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString().split(' ')[0]}]</span> ` +
+                            `<span class="${ch.logClass}"><b>${ch.label}</b></span> -> ` +
+                            `CHAR: <span class="log-char">${escapeHtml(t.char)}</span> | ` +
+                            `FREQ: <span style="color:var(--accent-magenta); font-weight:bold;">${t.freq.toFixed(1)}Hz</span>`;
+                        
+                        toneLog.prepend(li);
+                        if (toneLog.children.length > 35) toneLog.lastChild.remove();
+                    }
+                } else {
+                    renderChannelText(ch, -1, 0);
+                }
+            });
+        }
+
+        function renderChannelText(ch, idx, len) {
+            if (idx === ch.lastHighlightedIndex) return;
+            ch.lastHighlightedIndex = idx;
+            const txt = ch.textEl.value;
+            if (idx === -1 || !txt) { ch.bdropEl.innerHTML = escapeHtml(txt); return; }
+            ch.bdropEl.innerHTML = escapeHtml(txt.substring(0, idx)) + 
+                `<span class="tracking-highlight">${escapeHtml(txt.substring(idx, idx + len))}</span>` + 
+                escapeHtml(txt.substring(idx + len));
+        }
+
+        function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+        // Blended Composite Graphic Instrumentation Core
+        function drawCompositeGraphs() {
+            requestAnimationFrame(drawCompositeGraphs);
+            
+            if (oscCanvas.width !== oscCanvas.clientWidth) oscCanvas.width = oscCanvas.clientWidth;
+            if (oscCanvas.height !== oscCanvas.clientHeight) oscCanvas.height = oscCanvas.clientHeight;
+            
+            if (waterCanvas.width !== waterCanvas.clientWidth) {
+                const temp = document.createElement('canvas'); temp.width = waterCanvas.width; temp.height = waterCanvas.height;
+                temp.getContext('2d').drawImage(waterCanvas, 0, 0);
+                waterCanvas.width = waterCanvas.clientWidth; waterCanvas.height = waterCanvas.clientHeight;
+                waterCtx.drawImage(temp, 0, 0, waterCanvas.width, waterCanvas.height);
+            }
+
+            // --- POLYPHONIC TIME DOMAIN MIX MATRIX OSCILLOSCOPE ---
+            oscCtx.fillStyle = '#040608'; oscCtx.fillRect(0, 0, oscCanvas.width, oscCanvas.height);
+            if (!isPlaying || !masterAnalyser) {
+                oscCtx.strokeStyle = 'rgba(0,255,255,0.2)'; oscCtx.beginPath();
+                oscCtx.moveTo(0, oscCanvas.height/2); oscCtx.lineTo(oscCanvas.width, oscCanvas.height/2); oscCtx.stroke();
+                return;
+            }
+
+            const w = oscCanvas.width, h = oscCanvas.height;
+            const timeData = new Uint8Array(masterAnalyser.frequencyBinCount);
+            masterAnalyser.getByteTimeDomainData(timeData);
+
+            oscCtx.lineWidth = 2; oscCtx.strokeStyle = '#00ffff'; oscCtx.beginPath();
+            for (let i = 0; i < timeData.length; i++) {
+                const y = (timeData[i] / 128.0) * (h / 2);
+                i === 0 ? oscCtx.moveTo(i * (w/timeData.length), y) : oscCtx.lineTo(i * (w/timeData.length), y);
+            }
+            oscCtx.stroke();
+
+            // --- COMPOSITE BLENDED FREQUENCY WATERFALL SPECTRUM ---
+            waterCtx.drawImage(waterCanvas, -1, 0);
+            const freqData = new Uint8Array(masterAnalyser.frequencyBinCount);
+            masterAnalyser.getByteFrequencyData(freqData);
+            
+            const limit = Math.floor(freqData.length * 0.6);
+            for (let i = 0; i < limit; i++) {
+                if (freqData[i] > 12) {
+                    const val = freqData[i] / 255;
+                    // Intercept and map combined visual spectrum layers across glowing heat-signature variations
+                    waterCtx.fillStyle = `rgb(${Math.floor(val * 255)}, ${Math.floor(val * 190 * (1 - val))}, ${Math.floor(60 + val * 195)})`;
+                    waterCtx.fillRect(waterCanvas.width - 1, waterCanvas.height - (i * (waterCanvas.height / limit)), 1, 2);
+                }
+            }
+        }
+
+        // Fire Frame Tracking Threads
+        requestAnimationFrame(syncInterfaceVisuals);
+        requestAnimationFrame(drawCompositeGraphs);
+    </script>
+</body>
+</html>
