@@ -5,7 +5,7 @@ Observation: this is a primitive version of the acoustic alternative to the BPE 
 
 the core of this program is:
 
-```
+```js
 const freq = 261.63 * Math.pow(2, (charCode % 72) / 72.0);
 const masterSpeed = parseFloat(speedSlider.value) || 1.0;
 const duration = ((45 + ((charCode * 5) % 6) * 20) / 1000.0) / masterSpeed;
