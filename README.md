@@ -11,4 +11,6 @@ const masterSpeed = parseFloat(speedSlider.value) || 1.0;
 const duration = ((45 + ((charCode * 5) % 6) * 20) / 1000.0) / masterSpeed;
 
 ch.oscNode.frequency.setValueAtTime(freq, time);
+...
+ch.nextNoteTime += duration
 ```
